@@ -1,0 +1,5 @@
+{
+  "buildCommand": "cd openbooks && npm install && npm run build",
+  "outputDirectory": "openbooks/dist",
+  "installCommand": "echo skip"
+}
