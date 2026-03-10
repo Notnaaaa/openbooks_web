@@ -1,0 +1,233 @@
+// src/pages/app/Transaction.tsx
+import { useEffect, useMemo, useState } from "react";
+import { useBusiness } from "../../context/BusinessProvider";
+import {
+  createDoubleEntry,
+  generateReference,
+  listJournal,
+} from "../../services/transactions.service";
+import { money } from "../../lib/format";
+import type { TrxType } from "../../types/accounting";
+import "../../styles/globals.css";
+
+const TRX_TYPES: { label: string; value: TrxType }[] = [
+  { label: "Buy Asset (Cash)", value: "BUY_ASSET_CASH" },
+  { label: "Buy Asset (Credit)", value: "BUY_ASSET_CREDIT" },
+  { label: "Pay Expense", value: "PAY_EXPENSE" },
+  { label: "Withdraw", value: "WITHDRAW" },
+  { label: "Investment", value: "INVESTMENT" },
+  { label: "Income", value: "INCOME" },
+  { label: "Pay Liability", value: "PAY_LIABILITY" },
+];
+
+export default function Transactions() {
+  const { business } = useBusiness();
+
+  // ✅ your SQL doesn’t have currency_code in businesses
+  const currency = "PHP";
+
+  const [journal, setJournal] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const [trxType, setTrxType] = useState<TrxType>("INCOME");
+  const [trxDate, setTrxDate] = useState(new Date().toISOString().slice(0, 10));
+  const [description, setDescription] = useState("");
+  const [notes, setNotes] = useState("");
+  const [reference, setReference] = useState("");
+  const [debitAccountId, setDebitAccountId] = useState("");
+  const [creditAccountId, setCreditAccountId] = useState("");
+  const [amount, setAmount] = useState("");
+
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  
+
+  async function loadJournal() {
+    if (!business?.id) return;
+    setLoading(true);
+    const j = await listJournal(business.id);
+    setJournal((j.data ?? []) as any[]);
+    setLoading(false);
+  }
+
+  useEffect(() => {
+    loadJournal();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [business?.id]);
+
+  async function autoRef() {
+    if (!business?.id) return;
+    const { data, error } = await generateReference(business.id, trxDate);
+    if (error) {
+      setMsg(error.message);
+      return;
+    }
+    setReference(String(data ?? ""));
+  }
+
+  useEffect(() => {
+    autoRef();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [business?.id, trxDate]);
+
+  const disabled = useMemo(() => {
+    if (!business?.id) return true;
+    if (!trxDate) return true;
+    if (!trxType) return true;
+    if (!reference.trim()) return true;
+    if (!description.trim()) return true;
+    if (!debitAccountId) return true;
+    if (!creditAccountId) return true;
+    if (!amount || Number(amount) <= 0) return true;
+    if (busy) return true;
+    return false;
+  }, [
+    business?.id,
+    trxDate,
+    trxType,
+    reference,
+    description,
+    debitAccountId,
+    creditAccountId,
+    amount,
+    busy,
+  ]);
+
+  async function submit() {
+    if (disabled) return;
+
+    setBusy(true);
+    setMsg(null);
+
+    const { error } = await createDoubleEntry({
+      businessId: business!.id,
+      trxDate,
+      trxType,
+      description: description.trim(),
+      notes: notes.trim() ? notes.trim() : null,
+      reference: reference.trim(),
+      debitAccountId,
+      creditAccountId,
+      amount: Number(amount),
+    });
+
+    setBusy(false);
+
+    if (error) {
+      setMsg(error.message);
+      return;
+    }
+
+    setDescription("");
+    setNotes("");
+    setAmount("");
+    await autoRef();
+    await loadJournal();
+    setMsg("Transaction recorded ✓");
+  }
+
+  return (
+    <div className="page">
+      <h1 className="h1">Transactions</h1>
+      <p className="muted">{business?.name ?? "-"}</p>
+
+      {msg ? (
+        <div className="infoBox" role="status" aria-live="polite">
+          {msg}
+        </div>
+      ) : null}
+
+      <div className="cardWide" style={{ marginTop: 12 }}>
+        <div className="cardTitle">Record a Transaction</div>
+
+        <div className="formGrid">
+          <div>
+            <label className="labelBlock" htmlFor="trxDate">Date</label>
+            <input id="trxDate" className="input" type="date" value={trxDate} onChange={(e) => setTrxDate(e.target.value)} />
+          </div>
+
+          <div>
+            <label className="labelBlock" htmlFor="trxType">Type</label>
+            <select id="trxType" className="input" value={trxType} onChange={(e) => setTrxType(e.target.value as TrxType)}>
+              {TRX_TYPES.map((t) => (
+                <option key={t.value} value={t.value}>{t.label}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="span2">
+            <label className="labelBlock" htmlFor="desc">Description</label>
+            <input id="desc" className="input" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="What happened?" />
+          </div>
+
+          <div>
+            <label className="labelBlock" htmlFor="ref">Reference</label>
+            <input id="ref" className="input" value={reference} onChange={(e) => setReference(e.target.value)} />
+          </div>
+
+          <div>
+            <label className="labelBlock" htmlFor="amt">Amount ({currency})</label>
+            <input id="amt" className="input" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" />
+          </div>
+
+          <div>
+            <label className="labelBlock" htmlFor="debit">Debit Account ID</label>
+            <input id="debit" className="input" value={debitAccountId} onChange={(e) => setDebitAccountId(e.target.value)} placeholder="Paste account UUID" />
+          </div>
+
+          <div>
+            <label className="labelBlock" htmlFor="credit">Credit Account ID</label>
+            <input id="credit" className="input" value={creditAccountId} onChange={(e) => setCreditAccountId(e.target.value)} placeholder="Paste account UUID" />
+          </div>
+
+          <div className="span2">
+            <label className="labelBlock" htmlFor="notes">Notes (optional)</label>
+            <input id="notes" className="input" value={notes} onChange={(e) => setNotes(e.target.value)} />
+          </div>
+        </div>
+
+        <button className="btn" onClick={submit} disabled={disabled}>
+          {busy ? "Saving…" : "Save Transaction"}
+        </button>
+      </div>
+
+      <div className="cardWide" style={{ marginTop: 16 }}>
+        <div className="cardTitle">Transaction History (Journal View)</div>
+
+        {loading ? <p className="muted">Loading…</p> : null}
+
+        <div className="tableWrap" role="region" aria-label="Transactions table">
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Description</th>
+                <th>Reference</th>
+                <th className="num">Debit</th>
+                <th className="num">Credit</th>
+                <th>Notes</th>
+              </tr>
+            </thead>
+            <tbody>
+              {journal.map((r: any) => (
+                <tr key={r.created_at + r.account_name}>
+                  <td>{r.date}</td>
+                  <td>{r.description}</td>
+                  <td>{r.reference}</td>
+                  <td className="num">{r.debit ? money(Number(r.debit), currency) : ""}</td>
+                  <td className="num">{r.credit ? money(Number(r.credit), currency) : ""}</td>
+                  <td>{r.notes ?? ""}</td>
+                </tr>
+              ))}
+              {!journal.length ? (
+                <tr>
+                  <td colSpan={6} className="muted">No transactions yet.</td>
+                </tr>
+              ) : null}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
