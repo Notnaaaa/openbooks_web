@@ -324,14 +324,14 @@ export default function Dashboard() {
                     innerRadius="40%"
                     outerRadius="70%"
                     paddingAngle={3}
-                    label={({ percent }) => `${(percent * 100).toFixed(1)}%`}
+                    label={({ percent }) => `${((percent ?? 0) * 100).toFixed(1)}%`}
                     labelLine={false}
                   >
                     {allTimePie.map((_, i) => (
                       <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
                     ))}
                   </Pie>
-                  <Tooltip formatter={(v: number) => money(v, currency)} />
+                  <Tooltip formatter={(v: any) => money(Number(v ?? 0), currency)} />
                 </PieChart>
               </ResponsiveContainer>
             </div>
@@ -378,7 +378,7 @@ export default function Dashboard() {
             <BarChart data={incomeVsExpenseBar} margin={{ top: 16, right: 24, left: 0, bottom: 0 }}>
               <XAxis dataKey="name" tick={{ fontWeight: 700 }} />
               <YAxis tickFormatter={fmtAmount} />
-              <Tooltip formatter={(v: number) => money(v, "PHP")} />
+              <Tooltip formatter={(v: any) => money(Number(v ?? 0), "PHP")} />
               <Legend />
               <Bar dataKey="value" name="Income vs Expense" radius={[6, 6, 0, 0]}>
                 {incomeVsExpenseBar.map((entry, i) => (
@@ -400,7 +400,7 @@ export default function Dashboard() {
                   <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                   <XAxis dataKey="date" tick={{ fontSize: 11 }} />
                   <YAxis tickFormatter={fmtAmount} />
-                  <Tooltip formatter={(v: number) => money(v, "PHP")} />
+                  <Tooltip formatter={(v: any) => money(Number(v ?? 0), "PHP")} />
                   <Legend />
                   <Line type="monotone" dataKey="Income" stroke="#22c55e" strokeWidth={3} dot={{ r: 4 }} />
                   <Line type="monotone" dataKey="Expense" stroke="#ef4444" strokeWidth={3} dot={{ r: 4 }} />
@@ -427,14 +427,14 @@ export default function Dashboard() {
                     innerRadius="45%"
                     outerRadius="70%"
                     paddingAngle={3}
-                    label={({ name, percent }) => `${(percent * 100).toFixed(1)}%`}
+                    label={({ percent }) => `${((percent ?? 0) * 100).toFixed(1)}%`}
                     labelLine={false}
                   >
                     {expenseDist.map((_, i) => (
                       <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
                     ))}
                   </Pie>
-                  <Tooltip formatter={(v: number) => money(v, "PHP")} />
+                  <Tooltip formatter={(v: any) => money(Number(v ?? 0), "PHP")} />
                   <Legend />
                 </PieChart>
               </ResponsiveContainer>
